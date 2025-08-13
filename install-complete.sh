@@ -100,11 +100,26 @@ install_dependencies() {
 
 # Create application directory and files
 create_application() {
-    print_status "Creating application files..."
+    print_status "Creating application structure..."
     
     # Create directory
     sudo mkdir -p $APP_DIR
     sudo chown $USER:$USER $APP_DIR
+    cd $APP_DIR
+    
+    # Create all necessary directories
+    mkdir -p app/{dashboard/{servers,settings,themes},api}
+    mkdir -p components/ui
+    mkdir -p lib
+    mkdir -p public/images
+    
+    print_success "Application structure created."
+}
+
+# Create configuration files
+create_config_files() {
+    print_status "Creating configuration files..."
+    
     cd $APP_DIR
     
     # Create package.json
@@ -134,29 +149,7 @@ create_application() {
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.0.0",
     "tailwind-merge": "^1.14.0",
-    "@radix-ui/react-accordion": "^1.1.2",
-    "@radix-ui/react-alert-dialog": "^1.0.4",
-    "@radix-ui/react-avatar": "^1.0.3",
-    "@radix-ui/react-checkbox": "^1.0.4",
-    "@radix-ui/react-dialog": "^1.0.4",
-    "@radix-ui/react-dropdown-menu": "^2.0.5",
-    "@radix-ui/react-label": "^2.0.2",
-    "@radix-ui/react-popover": "^1.0.6",
-    "@radix-ui/react-progress": "^1.0.3",
-    "@radix-ui/react-radio-group": "^1.1.3",
-    "@radix-ui/react-scroll-area": "^1.0.4",
-    "@radix-ui/react-select": "^1.2.2",
-    "@radix-ui/react-separator": "^1.0.3",
-    "@radix-ui/react-sheet": "^1.0.4",
-    "@radix-ui/react-slider": "^1.1.2",
-    "@radix-ui/react-switch": "^1.0.3",
-    "@radix-ui/react-tabs": "^1.0.4",
-    "@radix-ui/react-toast": "^1.1.4",
-    "@radix-ui/react-toggle": "^1.0.3",
-    "@radix-ui/react-toggle-group": "^1.0.4",
-    "@radix-ui/react-tooltip": "^1.0.6",
-    "recharts": "^2.8.0",
-    "sonner": "^1.0.3"
+    "@radix-ui/react-slot": "^1.0.2"
   },
   "devDependencies": {
     "eslint": "^8",
@@ -276,19 +269,25 @@ const config = {
 export default config
 EOF
 
-    print_success "Application structure created."
+    print_success "Configuration files created."
 }
 
-# Create all application files
+# Create core application files
 create_app_files() {
-    print_status "Creating application files..."
+    print_status "Creating core application files..."
     
-    # Create directories
-    mkdir -p app/{dashboard/{servers,settings,themes},api}
-    mkdir -p components/{ui}
-    mkdir -p lib
-    mkdir -p public/images
+    cd $APP_DIR
     
+    # Create lib/utils.ts
+    cat > lib/utils.ts << 'EOF'
+import { type ClassValue, clsx } from "clsx"
+import { twMerge } from "tailwind-merge"
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
+}
+EOF
+
     # Create app/globals.css
     cat > app/globals.css << 'EOF'
 @tailwind base;
@@ -361,7 +360,258 @@ export default function RootLayout({
 }
 EOF
 
-    # Create app/page.tsx (Login page)
+    print_success "Core application files created."
+}
+
+# Create UI components
+create_ui_components() {
+    print_status "Creating UI components..."
+    
+    cd $APP_DIR
+    
+    # Ensure components/ui directory exists
+    mkdir -p components/ui
+    
+    # Create Button component
+    cat > components/ui/button.tsx << 'EOF'
+import * as React from "react"
+import { Slot } from "@radix-ui/react-slot"
+import { cva, type VariantProps } from "class-variance-authority"
+import { cn } from "@/lib/utils"
+
+const buttonVariants = cva(
+  "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+  {
+    variants: {
+      variant: {
+        default: "bg-primary text-primary-foreground hover:bg-primary/90",
+        destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+        outline: "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
+        secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        ghost: "hover:bg-accent hover:text-accent-foreground",
+        link: "text-primary underline-offset-4 hover:underline",
+      },
+      size: {
+        default: "h-10 px-4 py-2",
+        sm: "h-9 rounded-md px-3",
+        lg: "h-11 rounded-md px-8",
+        icon: "h-10 w-10",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default",
+    },
+  }
+)
+
+export interface ButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+    VariantProps<typeof buttonVariants> {
+  asChild?: boolean
+}
+
+const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ className, variant, size, asChild = false, ...props }, ref) => {
+    const Comp = asChild ? Slot : "button"
+    return (
+      <Comp
+        className={cn(buttonVariants({ variant, size, className }))}
+        ref={ref}
+        {...props}
+      />
+    )
+  }
+)
+Button.displayName = "Button"
+
+export { Button, buttonVariants }
+EOF
+
+    # Create Card component
+    cat > components/ui/card.tsx << 'EOF'
+import * as React from "react"
+import { cn } from "@/lib/utils"
+
+const Card = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn(
+      "rounded-lg border bg-card text-card-foreground shadow-sm",
+      className
+    )}
+    {...props}
+  />
+))
+Card.displayName = "Card"
+
+const CardHeader = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn("flex flex-col space-y-1.5 p-6", className)}
+    {...props}
+  />
+))
+CardHeader.displayName = "CardHeader"
+
+const CardTitle = React.forwardRef<
+  HTMLParagraphElement,
+  React.HTMLAttributes<HTMLHeadingElement>
+>(({ className, ...props }, ref) => (
+  <h3
+    ref={ref}
+    className={cn(
+      "text-2xl font-semibold leading-none tracking-tight",
+      className
+    )}
+    {...props}
+  />
+))
+CardTitle.displayName = "CardTitle"
+
+const CardDescription = React.forwardRef<
+  HTMLParagraphElement,
+  React.HTMLAttributes<HTMLParagraphElement>
+>(({ className, ...props }, ref) => (
+  <p
+    ref={ref}
+    className={cn("text-sm text-muted-foreground", className)}
+    {...props}
+  />
+))
+CardDescription.displayName = "CardDescription"
+
+const CardContent = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div ref={ref} className={cn("p-6 pt-0", className)} {...props} />
+))
+CardContent.displayName = "CardContent"
+
+const CardFooter = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn("flex items-center p-6 pt-0", className)}
+    {...props}
+  />
+))
+CardFooter.displayName = "CardFooter"
+
+export { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent }
+EOF
+
+    # Create Input component
+    cat > components/ui/input.tsx << 'EOF'
+import * as React from "react"
+import { cn } from "@/lib/utils"
+
+export interface InputProps
+  extends React.InputHTMLAttributes<HTMLInputElement> {}
+
+const Input = React.forwardRef<HTMLInputElement, InputProps>(
+  ({ className, type, ...props }, ref) => {
+    return (
+      <input
+        type={type}
+        className={cn(
+          "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+          className
+        )}
+        ref={ref}
+        {...props}
+      />
+    )
+  }
+)
+Input.displayName = "Input"
+
+export { Input }
+EOF
+
+    # Create Label component
+    cat > components/ui/label.tsx << 'EOF'
+import * as React from "react"
+import { cn } from "@/lib/utils"
+
+export interface LabelProps
+  extends React.LabelHTMLAttributes<HTMLLabelElement> {}
+
+const Label = React.forwardRef<HTMLLabelElement, LabelProps>(
+  ({ className, ...props }, ref) => (
+    <label
+      ref={ref}
+      className={cn(
+        "text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
+        className
+      )}
+      {...props}
+    />
+  )
+)
+Label.displayName = "Label"
+
+export { Label }
+EOF
+
+    # Create Badge component
+    cat > components/ui/badge.tsx << 'EOF'
+import * as React from "react"
+import { cva, type VariantProps } from "class-variance-authority"
+import { cn } from "@/lib/utils"
+
+const badgeVariants = cva(
+  "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+  {
+    variants: {
+      variant: {
+        default:
+          "border-transparent bg-primary text-primary-foreground hover:bg-primary/80",
+        secondary:
+          "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        destructive:
+          "border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80",
+        outline: "text-foreground",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+    },
+  }
+)
+
+export interface BadgeProps
+  extends React.HTMLAttributes<HTMLDivElement>,
+    VariantProps<typeof badgeVariants> {}
+
+function Badge({ className, variant, ...props }: BadgeProps) {
+  return (
+    <div className={cn(badgeVariants({ variant }), className)} {...props} />
+  )
+}
+
+export { Badge, badgeVariants }
+EOF
+
+    print_success "UI components created."
+}
+
+# Create application pages
+create_pages() {
+    print_status "Creating application pages..."
+    
+    cd $APP_DIR
+    
+    # Create login page (app/page.tsx)
     cat > app/page.tsx << 'EOF'
 "use client"
 
@@ -440,87 +690,6 @@ export default function LoginPage() {
 }
 EOF
 
-    print_success "Core application files created."
-}
-
-# Create essential UI components
-create_ui_components() {
-    print_status "Creating UI components..."
-    
-    # Create lib/utils.ts
-    cat > lib/utils.ts << 'EOF'
-import { type ClassValue, clsx } from "clsx"
-import { twMerge } from "tailwind-merge"
-
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
-}
-EOF
-
-    # Create essential UI components (Button, Card, Input, etc.)
-    cat > components/ui/button.tsx << 'EOF'
-import * as React from "react"
-import { Slot } from "@radix-ui/react-slot"
-import { cva, type VariantProps } from "class-variance-authority"
-import { cn } from "@/lib/utils"
-
-const buttonVariants = cva(
-  "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
-  {
-    variants: {
-      variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90",
-        destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
-        outline: "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
-        secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
-        link: "text-primary underline-offset-4 hover:underline",
-      },
-      size: {
-        default: "h-10 px-4 py-2",
-        sm: "h-9 rounded-md px-3",
-        lg: "h-11 rounded-md px-8",
-        icon: "h-10 w-10",
-      },
-    },
-    defaultVariants: {
-      variant: "default",
-      size: "default",
-    },
-  }
-)
-
-export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {
-  asChild?: boolean
-}
-
-const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
-    const Comp = asChild ? Slot : "button"
-    return (
-      <Comp
-        className={cn(buttonVariants({ variant, size, className }))}
-        ref={ref}
-        {...props}
-      />
-    )
-  }
-)
-Button.displayName = "Button"
-
-export { Button, buttonVariants }
-EOF
-
-    # Create more essential components...
-    print_success "UI components created."
-}
-
-# Create dashboard and main application logic
-create_dashboard() {
-    print_status "Creating dashboard..."
-    
     # Create dashboard page
     cat > app/dashboard/page.tsx << 'EOF'
 "use client"
@@ -773,7 +942,7 @@ export default function ThemesPage() {
 }
 EOF
 
-    print_success "Dashboard created."
+    print_success "Application pages created."
 }
 
 # Install application dependencies
@@ -885,9 +1054,10 @@ main() {
     install_nodejs
     install_dependencies
     create_application
+    create_config_files
     create_app_files
     create_ui_components
-    create_dashboard
+    create_pages
     install_app
     build_app
     setup_pm2
@@ -909,4 +1079,3 @@ main() {
 
 # Run main function
 main "$@"
-EOF
