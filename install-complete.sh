@@ -135,7 +135,7 @@ create_config_files() {
     "lint": "next lint"
   },
   "dependencies": {
-    "next": "14.0.0",
+    "next": "14.2.5",
     "react": "^18",
     "react-dom": "^18",
     "@types/node": "^20",
@@ -149,11 +149,16 @@ create_config_files() {
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.0.0",
     "tailwind-merge": "^1.14.0",
-    "@radix-ui/react-slot": "^1.0.2"
+    "@radix-ui/react-slot": "^1.0.2",
+    "@radix-ui/react-dialog": "^1.0.5",
+    "@radix-ui/react-tabs": "^1.0.4",
+    "@radix-ui/react-select": "^2.0.0",
+    "@radix-ui/react-switch": "^1.0.3",
+    "@radix-ui/react-label": "^2.0.2"
   },
   "devDependencies": {
     "eslint": "^8",
-    "eslint-config-next": "14.0.0"
+    "eslint-config-next": "14.2.5"
   }
 }
 EOF
@@ -162,10 +167,12 @@ EOF
     cat > next.config.mjs << 'EOF'
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'standalone',
   images: {
     domains: ['localhost'],
   },
+  experimental: {
+    esmExternals: false
+  }
 }
 
 export default nextConfig
